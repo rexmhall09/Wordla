@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wordla</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="page-shell">
+    <header class="hero">
+      <div>
+        <h1>Wordla</h1>
+        <p class="hero-copy">Solver, helper, and benchmark.</p>
+      </div>
+      <div class="hero-card">
+        <p class="hero-card-label">Local server</p>
+        <p class="hero-card-value">127.0.0.1</p>
+        <p class="hero-card-meta">Stop it with Ctrl+C in the terminal.</p>
+      </div>
+    </header>
+
+    <nav class="mode-tabs" aria-label="Wordla modes">
+      <button class="mode-tab is-active" data-panel="solver-panel">Solver</button>
+      <button class="mode-tab" data-panel="helper-panel">Helper</button>
+      <button class="mode-tab" data-panel="average-panel">Benchmark</button>
+    </nav>
+
+    <main class="panels">
+      <section id="solver-panel" class="panel is-active">
+        <div class="panel-copy">
+          <h2>Solver</h2>
+          <p>Enter a word, or leave it blank to use a random one.</p>
+        </div>
+
+        <form id="solver-form" class="controls-grid">
+          <label class="field">
+            <span>Target word</span>
+            <input id="solver-secret-word" name="secretWord" type="text" maxlength="5" placeholder="crane" autocomplete="off">
+          </label>
+          <button class="primary-button" type="submit">Run</button>
+        </form>
+
+        <div id="solver-status" class="status-card muted">No run yet.</div>
+        <div id="solver-board" class="board-panel"></div>
+      </section>
+
+      <section id="helper-panel" class="panel">
+        <div class="panel-copy">
+          <h2>Helper</h2>
+          <p>Start a round, then enter the feedback for each guess.</p>
+        </div>
+
+        <div class="actions-row">
+          <button id="helper-start" class="primary-button" type="button">Start</button>
+          <button id="helper-skip" class="secondary-button" type="button" disabled>Skip guess</button>
+          <button id="helper-submit" class="primary-button" type="button" disabled>Submit</button>
+        </div>
+
+        <div class="feedback-editor">
+          <div class="feedback-legend">
+            <span><span class="legend-dot legend-dot--n"></span>Gray</span>
+            <span><span class="legend-dot legend-dot--y"></span>Yellow</span>
+            <span><span class="legend-dot legend-dot--g"></span>Green</span>
+          </div>
+          <div id="feedback-row" class="feedback-row"></div>
+        </div>
+
+        <div id="helper-status" class="status-card muted">Press Start to get the first guess.</div>
+        <div id="helper-board" class="board-panel"></div>
+      </section>
+
+      <section id="average-panel" class="panel">
+        <div class="panel-copy">
+          <h2>Benchmark</h2>
+          <p>Run the solver across the full word list.</p>
+        </div>
+
+        <div class="actions-row">
+          <button id="average-run" class="primary-button" type="button">Run benchmark</button>
+        </div>
+
+        <div id="average-status" class="status-card muted">No benchmark yet.</div>
+      </section>
+    </main>
+  </div>
+
+  <script src="/app.js" defer></script>
+</body>
+</html>
