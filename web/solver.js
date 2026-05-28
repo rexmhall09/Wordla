@@ -10,7 +10,7 @@ let wordsPromise = null;
 
 export function loadWords() {
   if (!wordsPromise) {
-    wordsPromise = fetch(new URL('./words.txt', import.meta.url))
+    wordsPromise = fetch('./words.txt')
       .then((response) => {
         if (!response.ok) {
           throw new Error(`Could not load words.txt (${response.status}).`);

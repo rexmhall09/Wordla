@@ -16,13 +16,12 @@ It can solve a word you provide, help with feedback from a live game, or benchma
 The static web UI lives in `web/` and loads `words.txt` directly in the browser.
 It uses relative asset paths, so it works from GitHub Pages project URLs such as `/Wordla/`.
 
-GitHub Pages deployment is handled by `.github/workflows/pages.yml`.
-The workflow publishes only the static site artifact:
+GitHub Pages deployment should use GitHub Actions as its source. The workflow in `.github/workflows/pages.yml` publishes only the static site artifact:
 
 - all files from `web/`
 - `words.txt` copied to the artifact root
 
-No Python source files or backend API routes are required for the Pages site.
+The repository root also has `index.html` for branch-based Pages setups. That prevents GitHub Pages from rendering this README as the site while still loading the shared assets from `web/`.
 
 ## Requirements
 
