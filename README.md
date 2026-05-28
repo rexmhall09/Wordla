@@ -1,20 +1,33 @@
 # Wordla
 
-Wordla is a Python Wordle solver with both a terminal interface and a local website.
+Wordla is a Wordle solver with a static browser UI and a Python terminal/local-server interface.
 It can solve a word you provide, help with feedback from a live game, or benchmark the solver across the full word list.
 
 ## Features
 
-- Solve a target word from the terminal
+- Use the static web UI on GitHub Pages with no Python backend
+- Solve a target word from the browser or terminal
 - Step through feedback from a live game
 - Run a full benchmark over `words.txt`
-- Open a local website for the same workflows
 - Keep the project lightweight with plain Python, HTML, CSS, and JavaScript
+
+## Static Web UI
+
+The static web UI lives in `web/` and loads `words.txt` directly in the browser.
+It uses relative asset paths, so it works from GitHub Pages project URLs such as `/Wordla/`.
+
+GitHub Pages deployment is handled by `.github/workflows/pages.yml`.
+The workflow publishes only the static site artifact:
+
+- all files from `web/`
+- `words.txt` copied to the artifact root
+
+No Python source files or backend API routes are required for the Pages site.
 
 ## Requirements
 
-- Python 3.8+
-- `tqdm` for benchmark progress output
+- Python 3.8+ for the terminal interface and local server
+- `tqdm` for terminal benchmark progress output
 
 ## Installation
 
@@ -24,7 +37,7 @@ cd Wordla
 pip install tqdm
 ```
 
-## Run
+## Run the Python Interface
 
 ```bash
 python main.py
@@ -46,27 +59,23 @@ python main.py
    - Runs the solver across the full word list
    - Prints the average number of guesses
 
-4. **Open the website**
+4. **Open the local website**
    - Starts a local server on `127.0.0.1`
-   - Opens the browser UI for solver, helper, and benchmark modes
+   - Serves the same static browser UI plus the local API endpoints
    - Stop the server with `Ctrl+C`
-
-## Website
-
-The website is served locally from `website.py` and static files under `web/`.
-There is no separate web build step.
 
 ## Project Layout
 
-- `main.py` — terminal menu
-- `solver_core.py` — shared solver logic
-- `knownword.py` — terminal mode for solving a known target word
-- `helper.py` — terminal mode for entering feedback from a live game
-- `testaverage.py` — terminal benchmark mode
-- `website.py` — local HTTP server and API
-- `web/` — website assets
-- `tests/` — regression tests
-- `words.txt` — word list
+- `main.py`: terminal menu
+- `solver_core.py`: shared Python solver logic
+- `knownword.py`: terminal mode for solving a known target word
+- `helper.py`: terminal mode for entering feedback from a live game
+- `testaverage.py`: terminal benchmark mode
+- `website.py`: local HTTP server and API
+- `web/`: static browser UI assets
+- `web/solver.js`: browser solver logic for GitHub Pages
+- `tests/`: regression tests
+- `words.txt`: word list used by both Python and browser modes
 
 ## Development
 
@@ -75,6 +84,8 @@ Run the test suite with:
 ```bash
 python -m unittest discover -s tests -p 'test*.py'
 ```
+
+To preview the Pages artifact locally, serve a directory containing `web/` contents and `words.txt` at the same root.
 
 ## License
 
