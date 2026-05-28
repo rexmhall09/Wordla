@@ -13,6 +13,7 @@ from typing import cast
 
 from solver_core import (
     WORD_LIST,
+    WORDS_PATH,
     GuessTurn,
     HelperFeedbackError,
     HelperSession,
@@ -93,6 +94,10 @@ class WordlaRequestHandler(SimpleHTTPRequestHandler):
 
     def do_GET(self) -> None:
         parsed_path = urlparse(self.path)
+        if parsed_path.path == "/words.txt":
+            self.send_words()
+            return
+
         self.path = "/index.html" if parsed_path.path == "/" else parsed_path.path
         super().do_GET()
 
@@ -175,6 +180,14 @@ class WordlaRequestHandler(SimpleHTTPRequestHandler):
         self.wfile.write(response_body)
 
 
+    def send_words(self) -> None:
+        response_body = WORDS_PATH.read_bytes()
+        self.send_response(HTTPStatus.OK)
+        self.send_header("Content-Type", "text/plain; charset=utf-8")
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("Content-Length", str(len(response_body)))
+        self.end_headers()
+        self.wfile.write(response_body)
 def serialize_turn(turn: GuessTurn) -> dict[str, str]:
     return {"guess": turn.guess, "feedback": turn.feedback}
 

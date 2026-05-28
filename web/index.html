@@ -4,19 +4,19 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Wordla</title>
-  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
   <div class="page-shell">
     <header class="hero">
       <div>
         <h1>Wordla</h1>
-        <p class="hero-copy">Solver, helper, and benchmark.</p>
+        <p class="hero-copy">Wordle solver, helper, and benchmark for the browser.</p>
       </div>
       <div class="hero-card">
-        <p class="hero-card-label">Local server</p>
-        <p class="hero-card-value">127.0.0.1</p>
-        <p class="hero-card-meta">Stop it with Ctrl+C in the terminal.</p>
+        <p class="hero-card-label">Static build</p>
+        <p class="hero-card-value">Browser only</p>
+        <p class="hero-card-meta">Loads words.txt and runs locally in this tab.</p>
       </div>
     </header>
 
@@ -85,6 +85,6 @@
     </main>
   </div>
 
-  <script src="/app.js" defer></script>
+  <script type="module" src="./app.js"></script>
 </body>
 </html>

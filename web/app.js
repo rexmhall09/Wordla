@@ -1,3 +1,5 @@
+import { HelperSession, calculateAverageTries, loadWords, solveKnownWord } from './solver.js';
+
 const modeTabs = Array.from(document.querySelectorAll('.mode-tab'));
 const panels = Array.from(document.querySelectorAll('.panel'));
 const solverForm = document.getElementById('solver-form');
@@ -16,8 +18,10 @@ const averageStatus = document.getElementById('average-status');
 const feedbackCycle = ['N', 'Y', 'G'];
 const feedbackLabels = { N: 'Gray', Y: 'Yellow', G: 'Green' };
 
+let words = [];
+let helperSession = null;
+
 const helperState = {
-  sessionId: null,
   currentGuess: null,
   history: [],
   feedback: Array(5).fill('N'),
@@ -44,8 +48,12 @@ function setStatus(element, message, tone = 'muted') {
 }
 
 function setLoading(element, message) {
+  const loader = document.createElement('span');
+  loader.className = 'loader';
+  loader.textContent = message;
+
   element.className = 'status-card muted';
-  element.innerHTML = `<span class="loader">${message}</span>`;
+  element.replaceChildren(loader);
 }
 
 function buildTile(letter = '', feedback = '', extraClass = '') {
@@ -124,38 +132,52 @@ function renderFeedbackRow() {
   });
 }
 
-async function postJson(url, payload = {}) {
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-
-  const rawText = await response.text();
-  let data = {};
-
-  if (rawText) {
-    try {
-      data = JSON.parse(rawText);
-    } catch {
-      throw new Error('Invalid server response.');
-    }
-  }
-
-  if (!response.ok) {
-    throw new Error(data.error || 'Request failed.');
-  }
-
-  return data;
+function setControlsReady(isReady) {
+  solverForm.querySelector('button[type="submit"]').disabled = !isReady;
+  helperStart.disabled = !isReady;
+  averageRun.disabled = !isReady;
 }
 
-solverForm.addEventListener('submit', async (event) => {
+function updateHelperFromSnapshot(snapshot) {
+  helperState.currentGuess = snapshot.guess;
+  helperState.history = snapshot.history;
+  helperState.feedback = Array(5).fill('N');
+
+  helperSubmit.disabled = false;
+  helperSkip.disabled = false;
+  setStatus(helperStatus, `Turn ${snapshot.turn}: ${snapshot.guess.toUpperCase()}`, 'success');
+  renderFeedbackRow();
+  renderBoard(helperBoard, helperState.history, {
+    currentGuess: helperState.currentGuess,
+    pendingFeedback: helperState.feedback,
+  });
+}
+
+function completeHelper(response) {
+  helperSession = null;
+  helperState.currentGuess = null;
+  helperState.history = response.history;
+  helperState.feedback = Array(5).fill('N');
+  helperSubmit.disabled = true;
+  helperSkip.disabled = true;
+  setStatus(helperStatus, `Solved in ${formatGuessCount(response.tries)}.`, 'success');
+  renderFeedbackRow();
+  renderBoard(helperBoard, helperState.history, {
+    summary: 'Complete',
+  });
+}
+
+function handleError(statusElement, error) {
+  setStatus(statusElement, error instanceof Error ? error.message : String(error), 'error');
+}
+
+solverForm.addEventListener('submit', (event) => {
   event.preventDefault();
   setLoading(solverStatus, 'Running');
 
   try {
-    const secretWord = solverSecretWord.value.trim().toLowerCase();
-    const data = await postJson('/api/mode1/solve', { secretWord });
+    const secretWord = solverSecretWord.value;
+    const data = solveKnownWord(secretWord, words);
     const statusBits = [`Solved ${data.secretWord.toUpperCase()} in ${formatGuessCount(data.tries)}.`];
 
     if (data.replacedInvalidWord) {
@@ -169,99 +191,57 @@ solverForm.addEventListener('submit', async (event) => {
       summary: formatGuessCount(data.turns.length),
     });
   } catch (error) {
-    setStatus(solverStatus, error.message, 'error');
+    handleError(solverStatus, error);
     solverBoard.innerHTML = '';
   }
 });
 
-helperStart.addEventListener('click', async () => {
+helperStart.addEventListener('click', () => {
   setLoading(helperStatus, 'Starting');
 
   try {
-    const data = await postJson('/api/mode2/start');
-    helperState.sessionId = data.sessionId;
-    helperState.currentGuess = data.guess;
-    helperState.history = data.history;
-    helperState.feedback = Array(5).fill('N');
-
-    helperSubmit.disabled = false;
-    helperSkip.disabled = false;
-    setStatus(helperStatus, `Turn ${data.turn}: ${data.guess.toUpperCase()}`, 'success');
-    renderFeedbackRow();
-    renderBoard(helperBoard, helperState.history, {
-      currentGuess: helperState.currentGuess,
-      pendingFeedback: helperState.feedback,
-    });
+    helperSession = new HelperSession(words);
+    updateHelperFromSnapshot(helperSession.snapshot());
   } catch (error) {
-    setStatus(helperStatus, error.message, 'error');
+    helperSession = null;
+    helperSubmit.disabled = true;
+    helperSkip.disabled = true;
+    handleError(helperStatus, error);
   }
 });
 
-helperSubmit.addEventListener('click', async () => {
-  if (!helperState.sessionId) {
+helperSubmit.addEventListener('click', () => {
+  if (!helperSession) {
     return;
   }
 
   setLoading(helperStatus, 'Submitting');
 
   try {
-    const feedback = helperState.feedback.join('');
-    const data = await postJson('/api/mode2/feedback', {
-      sessionId: helperState.sessionId,
-      feedback,
-    });
+    const response = helperSession.applyFeedback(helperState.feedback.join(''));
 
-    helperState.history = data.history;
-
-    if (data.done) {
-      helperState.sessionId = null;
-      helperState.currentGuess = null;
-      helperState.feedback = Array(5).fill('N');
-      helperSubmit.disabled = true;
-      helperSkip.disabled = true;
-      setStatus(helperStatus, `Solved in ${formatGuessCount(data.tries)}.`, 'success');
-      renderFeedbackRow();
-      renderBoard(helperBoard, helperState.history, {
-        summary: 'Complete',
-      });
+    if (response.done) {
+      completeHelper(response);
       return;
     }
 
-    helperState.currentGuess = data.guess;
-    helperState.feedback = Array(5).fill('N');
-    setStatus(helperStatus, `Turn ${data.turn}: ${data.guess.toUpperCase()}`, 'success');
-    renderFeedbackRow();
-    renderBoard(helperBoard, helperState.history, {
-      currentGuess: helperState.currentGuess,
-      pendingFeedback: helperState.feedback,
-    });
+    updateHelperFromSnapshot(response);
   } catch (error) {
-    setStatus(helperStatus, error.message, 'error');
+    handleError(helperStatus, error);
   }
 });
 
-helperSkip.addEventListener('click', async () => {
-  if (!helperState.sessionId) {
+helperSkip.addEventListener('click', () => {
+  if (!helperSession) {
     return;
   }
 
   setLoading(helperStatus, 'Skipping');
 
   try {
-    const data = await postJson('/api/mode2/skip', {
-      sessionId: helperState.sessionId,
-    });
-    helperState.currentGuess = data.guess;
-    helperState.history = data.history;
-    helperState.feedback = Array(5).fill('N');
-    setStatus(helperStatus, `Turn ${data.turn}: ${data.guess.toUpperCase()}`, 'success');
-    renderFeedbackRow();
-    renderBoard(helperBoard, helperState.history, {
-      currentGuess: helperState.currentGuess,
-      pendingFeedback: helperState.feedback,
-    });
+    updateHelperFromSnapshot(helperSession.skipGuess());
   } catch (error) {
-    setStatus(helperStatus, error.message, 'error');
+    handleError(helperStatus, error);
   }
 });
 
@@ -270,15 +250,39 @@ averageRun.addEventListener('click', async () => {
   setLoading(averageStatus, 'Running benchmark');
 
   try {
-    const data = await postJson('/api/mode3/average');
-    setStatus(averageStatus, `Average: ${data.average.toFixed(3)} over ${data.wordsTested} words.`, 'success');
+    const average = await calculateAverageTries(words, Math.random, (completed, total) => {
+      if (completed === total || completed % 100 === 0) {
+        setStatus(averageStatus, `Running benchmark: ${completed.toLocaleString()} of ${total.toLocaleString()} words...`);
+      }
+    });
+    setStatus(averageStatus, `Average: ${average.toFixed(3)} over ${words.length.toLocaleString()} words.`, 'success');
   } catch (error) {
-    setStatus(averageStatus, error.message, 'error');
+    handleError(averageStatus, error);
   } finally {
     averageRun.disabled = false;
   }
 });
 
-renderFeedbackRow();
-renderBoard(solverBoard, []);
-renderBoard(helperBoard, []);
+async function initialize() {
+  setControlsReady(false);
+  setLoading(solverStatus, 'Loading word list');
+  setStatus(helperStatus, 'Loading word list...');
+  setStatus(averageStatus, 'Loading word list...');
+  renderFeedbackRow();
+  renderBoard(solverBoard, []);
+  renderBoard(helperBoard, []);
+
+  try {
+    words = await loadWords();
+    setControlsReady(true);
+    setStatus(solverStatus, `Ready with ${words.length.toLocaleString()} words.`);
+    setStatus(helperStatus, 'Press Start to get the first guess.');
+    setStatus(averageStatus, 'No benchmark yet.');
+  } catch (error) {
+    handleError(solverStatus, error);
+    handleError(helperStatus, error);
+    handleError(averageStatus, error);
+  }
+}
+
+initialize();
