@@ -10,6 +10,8 @@ from website import WordlaWebApi
 class SolverCoreTests(unittest.TestCase):
     def test_score_guess_marks_expected_feedback(self) -> None:
         self.assertEqual(score_guess("crane", "soare"), "NNGYG")
+        self.assertEqual(score_guess("clang", "llama"), "NGGNN")
+        self.assertEqual(score_guess("clang", "chaap"), "GNGNN")
 
     def test_solve_known_word_finishes_on_secret(self) -> None:
         run = solve_known_word(secret_word="crane", rng=random.Random(7))
@@ -32,6 +34,19 @@ class SolverCoreTests(unittest.TestCase):
         self.assertTrue(response["done"])
         self.assertEqual(response["tries"], 1)
         self.assertEqual(len(response["history"]), 1)
+
+    def test_helper_session_handles_duplicate_letter_feedback(self) -> None:
+        session = HelperSession(rng=random.Random(0))
+
+        for _ in range(10):
+            feedback = score_guess("clang", session.current_guess)
+            response = session.apply_feedback(feedback)
+            if response["done"]:
+                self.assertEqual(response["history"][-1]["guess"], "clang")
+                self.assertEqual(response["history"][-1]["feedback"], "GGGGG")
+                return
+
+        self.fail("Helper did not solve clang with duplicate-letter feedback.")
 
 
 class WebsiteApiTests(unittest.TestCase):

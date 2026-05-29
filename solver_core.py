@@ -6,7 +6,6 @@ from pathlib import Path
 from typing import Callable, Iterable
 
 WORD_LENGTH = 5
-ALPHABET = "abcdefghijklmnopqrstuvwxyz"
 STARTING_GUESSES = ("aeros", "arose", "soare")
 WORDS_PATH = Path(__file__).with_name("words.txt")
 
@@ -21,15 +20,6 @@ class GuessTurn:
     guess: str
     feedback: str
 
-
-@dataclass
-class Knowledge:
-    letters: dict[int, set[str]] = field(
-        default_factory=lambda: {
-            index: set(ALPHABET) for index in range(WORD_LENGTH)
-        }
-    )
-    required_letters: set[str] = field(default_factory=set)
 
 
 @dataclass
@@ -52,7 +42,6 @@ class HelperFeedbackError(ValueError):
 class HelperSession:
     rng: random.Random = field(default_factory=random.Random)
     current_guess: str = field(init=False)
-    knowledge: Knowledge = field(default_factory=Knowledge)
     tried_words: set[str] = field(default_factory=set)
     history: list[GuessTurn] = field(default_factory=list)
 
@@ -74,10 +63,9 @@ class HelperSession:
                 "history": serialize_turns(self.history),
             }
 
-        apply_feedback_to_knowledge(self.current_guess, normalized_feedback, self.knowledge)
         self.tried_words.add(self.current_guess)
         self.current_guess = choose_next_guess(
-            candidates=filter_remaining_words(self.knowledge),
+            candidates=filter_remaining_words(self.history),
             tried_words=self.tried_words,
             rng=self.rng,
         )
@@ -86,7 +74,7 @@ class HelperSession:
     def skip_guess(self) -> dict[str, object]:
         self.tried_words.add(self.current_guess)
         self.current_guess = choose_next_guess(
-            candidates=filter_remaining_words(self.knowledge),
+            candidates=filter_remaining_words(self.history),
             tried_words=self.tried_words,
             rng=self.rng,
         )
@@ -109,10 +97,26 @@ def pick_starting_guess(rng: random.Random) -> str:
 
 
 def score_guess(secret_word: str, guess: str) -> str:
-    return "".join(
-        "G" if guess[index] == secret_word[index] else "Y" if guess[index] in secret_word else "N"
-        for index in range(len(guess))
-    )
+    feedback = ["N"] * WORD_LENGTH
+    remaining_letters: dict[str, int] = {}
+
+    for index, letter in enumerate(guess):
+        if letter == secret_word[index]:
+            feedback[index] = "G"
+        else:
+            secret_letter = secret_word[index]
+            remaining_letters[secret_letter] = remaining_letters.get(secret_letter, 0) + 1
+
+    for index, letter in enumerate(guess):
+        if feedback[index] == "G":
+            continue
+
+        remaining_count = remaining_letters.get(letter, 0)
+        if remaining_count > 0:
+            feedback[index] = "Y"
+            remaining_letters[letter] = remaining_count - 1
+
+    return "".join(feedback)
 
 
 def normalize_secret_word(
@@ -145,32 +149,18 @@ def normalize_feedback(feedback: str) -> str:
     return normalized_feedback
 
 
-def apply_feedback_to_knowledge(guess: str, feedback: str, knowledge: Knowledge) -> None:
-    for index, result in enumerate(feedback):
-        letter = guess[index]
-        if result == "G":
-            knowledge.letters[index] = {letter}
-            knowledge.required_letters.add(letter)
-        elif result == "Y":
-            knowledge.letters[index].discard(letter)
-            knowledge.required_letters.add(letter)
-        elif result == "N":
-            for candidate_letters in knowledge.letters.values():
-                candidate_letters.discard(letter)
+def filter_remaining_words(
+    turns: Iterable[GuessTurn],
+    words: Iterable[str] | None = None,
+) -> list[str]:
+    candidate_words = WORD_LIST if words is None else words
+    turn_history = tuple(turns)
 
-
-def filter_remaining_words(knowledge: Knowledge, words: Iterable[str] | None = None) -> list[str]:
-    candidate_words = WORD_LIST if words is None else list(words)
-    remaining_words = []
-
-    for word in candidate_words:
-        if any(letter not in knowledge.letters[index] for index, letter in enumerate(word)):
-            continue
-        if any(letter not in word for letter in knowledge.required_letters):
-            continue
-        remaining_words.append(word)
-
-    return remaining_words
+    return [
+        word
+        for word in candidate_words
+        if all(score_guess(word, turn.guess) == turn.feedback for turn in turn_history)
+    ]
 
 
 def choose_next_guess(candidates: Iterable[str], tried_words: set[str], rng: random.Random) -> str:
@@ -184,7 +174,6 @@ def solve_known_word(secret_word: str | None = None, rng: random.Random | None =
     active_rng = rng or random.Random()
     chosen_word, used_random_word, replaced_invalid_word = normalize_secret_word(secret_word, active_rng)
     guess = pick_starting_guess(active_rng)
-    knowledge = Knowledge()
     turns: list[GuessTurn] = []
     tried_words: set[str] = set()
 
@@ -194,10 +183,9 @@ def solve_known_word(secret_word: str | None = None, rng: random.Random | None =
         if feedback == "G" * WORD_LENGTH:
             break
 
-        apply_feedback_to_knowledge(guess, feedback, knowledge)
         tried_words.add(guess)
         guess = choose_next_guess(
-            candidates=filter_remaining_words(knowledge),
+            candidates=filter_remaining_words(turns),
             tried_words=tried_words,
             rng=active_rng,
         )

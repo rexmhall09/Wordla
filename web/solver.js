@@ -1,5 +1,4 @@
 const WORD_LENGTH = 5;
-const ALPHABET = 'abcdefghijklmnopqrstuvwxyz';
 const STARTING_GUESSES = ['aeros', 'arose', 'soare'];
 const SOLVED_FEEDBACK = 'G'.repeat(WORD_LENGTH);
 const VALID_FEEDBACK = new Set(['G', 'Y', 'N']);
@@ -25,19 +24,33 @@ export function loadWords() {
 }
 
 export function scoreGuess(secretWord, guess) {
-  let feedback = '';
+  const feedback = Array(WORD_LENGTH).fill('N');
+  const remainingLetters = new Map();
 
   for (let index = 0; index < guess.length; index += 1) {
     if (guess[index] === secretWord[index]) {
-      feedback += 'G';
-    } else if (secretWord.includes(guess[index])) {
-      feedback += 'Y';
+      feedback[index] = 'G';
     } else {
-      feedback += 'N';
+      const letter = secretWord[index];
+      remainingLetters.set(letter, (remainingLetters.get(letter) || 0) + 1);
     }
   }
 
-  return feedback;
+  for (let index = 0; index < guess.length; index += 1) {
+    if (feedback[index] === 'G') {
+      continue;
+    }
+
+    const letter = guess[index];
+    const remainingCount = remainingLetters.get(letter) || 0;
+
+    if (remainingCount > 0) {
+      feedback[index] = 'Y';
+      remainingLetters.set(letter, remainingCount - 1);
+    }
+  }
+
+  return feedback.join('');
 }
 
 export function normalizeSecretWord(secretWord, words, rng = Math.random) {
@@ -60,7 +73,6 @@ export function normalizeSecretWord(secretWord, words, rng = Math.random) {
 
 export function solveKnownWord(secretWord, words, rng = Math.random) {
   const normalized = normalizeSecretWord(secretWord, words, rng);
-  const knowledge = createKnowledge();
   const triedWords = new Set();
   const turns = [];
   let guess = pickStartingGuess(rng);
@@ -79,9 +91,8 @@ export function solveKnownWord(secretWord, words, rng = Math.random) {
       };
     }
 
-    applyFeedbackToKnowledge(guess, feedback, knowledge);
     triedWords.add(guess);
-    guess = chooseNextGuess(filterRemainingWords(knowledge, words), triedWords, rng);
+    guess = chooseNextGuess(filterRemainingWords(turns, words), triedWords, rng);
   }
 }
 
@@ -90,7 +101,6 @@ export class HelperSession {
     this.words = words;
     this.rng = rng;
     this.currentGuess = pickStartingGuess(rng);
-    this.knowledge = createKnowledge();
     this.triedWords = new Set();
     this.history = [];
   }
@@ -111,7 +121,6 @@ export class HelperSession {
       };
     }
 
-    applyFeedbackToKnowledge(this.currentGuess, normalizedFeedback, this.knowledge);
     this.triedWords.add(this.currentGuess);
     this.currentGuess = this.nextGuess();
 
@@ -135,7 +144,7 @@ export class HelperSession {
   }
 
   nextGuess() {
-    return chooseNextGuess(filterRemainingWords(this.knowledge, this.words), this.triedWords, this.rng);
+    return chooseNextGuess(filterRemainingWords(this.history, this.words), this.triedWords, this.rng);
   }
 }
 
@@ -193,18 +202,6 @@ function getWordSet(words) {
   return wordSet;
 }
 
-function createKnowledge() {
-  const letters = [];
-
-  for (let index = 0; index < WORD_LENGTH; index += 1) {
-    letters.push(new Set(ALPHABET));
-  }
-
-  return {
-    letters,
-    requiredLetters: new Set(),
-  };
-}
 
 function normalizeFeedback(feedback) {
   const normalizedFeedback = String(feedback).trim().toUpperCase();
@@ -224,37 +221,13 @@ function normalizeFeedback(feedback) {
   return normalizedFeedback;
 }
 
-function applyFeedbackToKnowledge(guess, feedback, knowledge) {
-  for (let index = 0; index < feedback.length; index += 1) {
-    const letter = guess[index];
-
-    if (feedback[index] === 'G') {
-      knowledge.letters[index] = new Set([letter]);
-      knowledge.requiredLetters.add(letter);
-    } else if (feedback[index] === 'Y') {
-      knowledge.letters[index].delete(letter);
-      knowledge.requiredLetters.add(letter);
-    } else if (feedback[index] === 'N') {
-      for (const candidateLetters of knowledge.letters) {
-        candidateLetters.delete(letter);
-      }
-    }
-  }
-}
-
-function filterRemainingWords(knowledge, words) {
+function filterRemainingWords(turns, words) {
   const remainingWords = [];
 
   wordLoop:
   for (const word of words) {
-    for (let index = 0; index < WORD_LENGTH; index += 1) {
-      if (!knowledge.letters[index].has(word[index])) {
-        continue wordLoop;
-      }
-    }
-
-    for (const letter of knowledge.requiredLetters) {
-      if (!word.includes(letter)) {
+    for (const turn of turns) {
+      if (scoreGuess(word, turn.guess) !== turn.feedback) {
         continue wordLoop;
       }
     }
