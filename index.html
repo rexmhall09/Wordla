@@ -9,25 +9,62 @@
 <body>
   <div class="page-shell">
     <header class="hero">
-      <div>
+      <div class="hero-copy-wrap">
+        <p class="eyebrow">Wordle companion</p>
         <h1>Wordla</h1>
-        <p class="hero-copy">Wordle solver, helper, and benchmark for the browser.</p>
+        <p class="hero-copy">Use Wordla beside a live Wordle game: start Helper, play the suggested word, enter the color feedback, and get the next guess in your browser.</p>
       </div>
-      <div class="hero-card">
-        <p class="hero-card-label">Static build</p>
-        <p class="hero-card-value">Browser only</p>
-        <p class="hero-card-meta">Loads words.txt and runs locally in this tab.</p>
+      <div class="hero-card" aria-label="How Wordla works">
+        <p class="hero-card-label">Default mode</p>
+        <p class="hero-card-value">Helper</p>
+        <p class="hero-card-meta">Static, browser-only solver that loads words.txt and runs locally in this tab.</p>
       </div>
     </header>
 
     <nav class="mode-tabs" aria-label="Wordla modes">
-      <button class="mode-tab is-active" data-panel="solver-panel">Solver</button>
-      <button class="mode-tab" data-panel="helper-panel">Helper</button>
+      <button class="mode-tab is-active" data-panel="helper-panel">Helper</button>
+      <button class="mode-tab" data-panel="solver-panel">Solver</button>
       <button class="mode-tab" data-panel="average-panel">Benchmark</button>
     </nav>
 
     <main class="panels">
-      <section id="solver-panel" class="panel is-active">
+      <section id="helper-panel" class="panel is-active">
+        <div class="panel-copy">
+          <p class="eyebrow">Live game helper</p>
+          <h2>Helper</h2>
+          <p>Play alongside Wordle. Wordla suggests a guess, then narrows the list from the feedback colors you enter.</p>
+        </div>
+
+        <div class="helper-guide" aria-labelledby="helper-guide-title">
+          <h3 id="helper-guide-title">How to use Helper</h3>
+          <ol>
+            <li>Press Start helper to get Wordla’s first guess.</li>
+            <li>Play that guess in Wordle.</li>
+            <li>Tap each tile until it matches the feedback color.</li>
+            <li>Submit for the next guess, or Skip if Wordle rejects the word.</li>
+          </ol>
+        </div>
+
+        <div class="actions-row">
+          <button id="helper-start" class="primary-button" type="button">Start helper</button>
+          <button id="helper-skip" class="secondary-button" type="button" disabled>Skip guess</button>
+          <button id="helper-submit" class="primary-button" type="button" disabled>Submit feedback</button>
+        </div>
+
+        <div class="feedback-editor">
+          <div class="feedback-legend" aria-label="Feedback color meanings">
+            <span><span class="legend-dot legend-dot--n"></span>Gray = not in word</span>
+            <span><span class="legend-dot legend-dot--y"></span>Yellow = wrong spot</span>
+            <span><span class="legend-dot legend-dot--g"></span>Green = correct spot</span>
+          </div>
+          <div id="feedback-row" class="feedback-row"></div>
+        </div>
+
+        <div id="helper-status" class="status-card muted">Press Start helper to get the first guess.</div>
+        <div id="helper-board" class="board-panel"></div>
+      </section>
+
+      <section id="solver-panel" class="panel">
         <div class="panel-copy">
           <h2>Solver</h2>
           <p>Enter a word, or leave it blank to use a random one.</p>
@@ -43,31 +80,6 @@
 
         <div id="solver-status" class="status-card muted">No run yet.</div>
         <div id="solver-board" class="board-panel"></div>
-      </section>
-
-      <section id="helper-panel" class="panel">
-        <div class="panel-copy">
-          <h2>Helper</h2>
-          <p>Start a round, then enter the feedback for each guess.</p>
-        </div>
-
-        <div class="actions-row">
-          <button id="helper-start" class="primary-button" type="button">Start</button>
-          <button id="helper-skip" class="secondary-button" type="button" disabled>Skip guess</button>
-          <button id="helper-submit" class="primary-button" type="button" disabled>Submit</button>
-        </div>
-
-        <div class="feedback-editor">
-          <div class="feedback-legend">
-            <span><span class="legend-dot legend-dot--n"></span>Gray</span>
-            <span><span class="legend-dot legend-dot--y"></span>Yellow</span>
-            <span><span class="legend-dot legend-dot--g"></span>Green</span>
-          </div>
-          <div id="feedback-row" class="feedback-row"></div>
-        </div>
-
-        <div id="helper-status" class="status-card muted">Press Start to get the first guess.</div>
-        <div id="helper-board" class="board-panel"></div>
       </section>
 
       <section id="average-panel" class="panel">
