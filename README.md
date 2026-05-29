@@ -2,6 +2,7 @@
 
 Wordla is a Wordle solver with a static browser UI and a Python terminal/local-server interface.
 It can solve a word you provide, help with feedback from a live game, or benchmark the solver across the full word list.
+[deployed here](https://rexmhall09.github.io/Wordla/)
 
 ## Features
 
