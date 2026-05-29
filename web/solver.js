@@ -111,9 +111,14 @@ export class HelperSession {
 
   applyFeedback(feedback) {
     const normalizedFeedback = normalizeFeedback(feedback);
-    this.history.push({ guess: this.currentGuess, feedback: normalizedFeedback });
+    const nextHistory = [
+      ...this.history,
+      { guess: this.currentGuess, feedback: normalizedFeedback },
+    ];
 
     if (normalizedFeedback === SOLVED_FEEDBACK) {
+      this.history = nextHistory;
+
       return {
         done: true,
         tries: this.history.length,
@@ -121,15 +126,24 @@ export class HelperSession {
       };
     }
 
-    this.triedWords.add(this.currentGuess);
-    this.currentGuess = this.nextGuess();
+    const nextTriedWords = new Set(this.triedWords);
+    nextTriedWords.add(this.currentGuess);
+    const nextGuess = chooseNextGuess(filterRemainingWords(nextHistory, this.words), nextTriedWords, this.rng);
+
+    this.history = nextHistory;
+    this.triedWords = nextTriedWords;
+    this.currentGuess = nextGuess;
 
     return this.snapshot();
   }
 
   skipGuess() {
-    this.triedWords.add(this.currentGuess);
-    this.currentGuess = this.nextGuess();
+    const nextTriedWords = new Set(this.triedWords);
+    nextTriedWords.add(this.currentGuess);
+    const nextGuess = chooseNextGuess(filterRemainingWords(this.history, this.words), nextTriedWords, this.rng);
+
+    this.triedWords = nextTriedWords;
+    this.currentGuess = nextGuess;
 
     return this.snapshot();
   }

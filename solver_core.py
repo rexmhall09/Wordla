@@ -54,30 +54,41 @@ class HelperSession:
 
     def apply_feedback(self, feedback: str) -> dict[str, object]:
         normalized_feedback = normalize_feedback(feedback)
-        self.history.append(GuessTurn(guess=self.current_guess, feedback=normalized_feedback))
+        next_history = [
+            *self.history,
+            GuessTurn(guess=self.current_guess, feedback=normalized_feedback),
+        ]
 
         if normalized_feedback == "G" * WORD_LENGTH:
+            self.history = next_history
             return {
                 "done": True,
                 "tries": len(self.history),
                 "history": serialize_turns(self.history),
             }
 
-        self.tried_words.add(self.current_guess)
-        self.current_guess = choose_next_guess(
-            candidates=filter_remaining_words(self.history),
-            tried_words=self.tried_words,
+        next_tried_words = {*self.tried_words, self.current_guess}
+        next_guess = choose_next_guess(
+            candidates=filter_remaining_words(next_history),
+            tried_words=next_tried_words,
             rng=self.rng,
         )
+
+        self.history = next_history
+        self.tried_words = next_tried_words
+        self.current_guess = next_guess
         return self.snapshot()
 
     def skip_guess(self) -> dict[str, object]:
-        self.tried_words.add(self.current_guess)
-        self.current_guess = choose_next_guess(
+        next_tried_words = {*self.tried_words, self.current_guess}
+        next_guess = choose_next_guess(
             candidates=filter_remaining_words(self.history),
-            tried_words=self.tried_words,
+            tried_words=next_tried_words,
             rng=self.rng,
         )
+
+        self.tried_words = next_tried_words
+        self.current_guess = next_guess
         return self.snapshot()
 
     def snapshot(self) -> dict[str, object]:

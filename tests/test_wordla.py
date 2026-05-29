@@ -48,6 +48,20 @@ class SolverCoreTests(unittest.TestCase):
 
         self.fail("Helper did not solve clang with duplicate-letter feedback.")
 
+    def test_helper_session_keeps_state_after_conflicting_feedback(self) -> None:
+        session = HelperSession(rng=random.Random(0))
+        current_guess = session.current_guess
+
+        with self.assertRaises(HelperFeedbackError):
+            session.apply_feedback("GGGGN")
+
+        self.assertEqual(session.current_guess, current_guess)
+        self.assertEqual(session.history, [])
+        response = session.apply_feedback(score_guess("clang", current_guess))
+
+        self.assertFalse(response["done"])
+        self.assertEqual(response["history"][0]["guess"], current_guess)
+
 
 class WebsiteApiTests(unittest.TestCase):
     def test_mode_one_response_contains_turns(self) -> None:
